@@ -1,3 +1,4 @@
+---
 # tasks file for k8s
 - name: Ensure net.bridge.bridge-nf-call-ip6tables is configured
   lineinfile:
