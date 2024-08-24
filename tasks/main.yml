@@ -1,0 +1,70 @@
+# tasks file for k8s
+- name: Ensure net.bridge.bridge-nf-call-ip6tables is configured
+  lineinfile:
+    path: /etc/sysctl.d/k8s.conf
+    line: "net.bridge.bridge-nf-call-ip6tables = 1"
+    state: present
+    create: yes
+  register: bridge_nf_call_ip6tables
+
+- name: Ensure net.bridge.bridge-nf-call-iptables is configured
+  lineinfile:
+    path: /etc/sysctl.d/k8s.conf
+    line: "net.bridge.bridge-nf-call-iptables = 1"
+    state: present
+    create: yes
+  register: bridge_nf_call_iptables
+
+- name: Reload sysctl settings
+  command: sysctl --system
+  become: yes
+
+- name: Ensure required packages are installed
+  apt:
+    name:
+      - apt-transport-https
+      - curl
+      - gpg
+    state: present
+
+- name: Add Kubernetes apt repository GPG key
+  ansible.builtin.get_url:
+    url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+    dest: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    mode: "0644"
+    validate_certs: yes
+  become: yes
+
+- name: Add Kubernetes apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
+    filename: kubernetes
+    state: present
+  become: yes
+
+- name: Update apt package index
+  apt:
+    update_cache: yes
+
+- name: Install Kubernetes components
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+
+- name: Hold kubelet
+  ansible.builtin.dpkg_selections:
+    name: kubelet
+    selection: hold
+
+- name: Hold kubeadm
+  ansible.builtin.dpkg_selections:
+    name: kubeadm
+    selection: hold
+
+- name: Hold kubectl
+  ansible.builtin.dpkg_selections:
+    name: kubectl
+    selection: hold
