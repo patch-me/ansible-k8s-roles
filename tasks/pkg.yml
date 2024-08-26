@@ -1,0 +1,89 @@
+- name: Ensure required packages are installed
+  apt:
+    name:
+      - apt-transport-https
+      - curl
+      - gpg
+    state: present
+    update_cache: yes
+
+- name: Add Docker APT GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+
+- name: Add Docker APT repository
+  apt_repository:
+    repo: deb https://download.docker.com/linux/ubuntu xenial stable
+    state: present
+    filename: "docker"
+
+- name: Run apt-get update and install docker packages
+  apt:
+    update_cache: true
+    name:
+      - containerd
+  become: true
+
+- name: Ensure /etc/containerd directory exists
+  file:
+    path: /etc/containerd
+    state: directory
+    mode: "0755"
+
+- name: Generate containerd default config and save to /etc/containerd/config.toml
+  command: containerd config default
+  register: containerd_config
+
+- name: Write containerd config to /etc/containerd/config.toml
+  copy:
+    content: "{{ containerd_config.stdout }}"
+    dest: /etc/containerd/config.toml
+    mode: "0644"
+
+- name: Ensure containerd is enabled and started
+  systemd:
+    name: containerd
+    enabled: yes
+    state: started
+
+- name: Add Kubernetes APT GPG key
+  apt_key:
+    url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
+    state: present
+
+- name: Add Kubernetes APT repository
+  apt_repository:
+    repo: deb https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /
+    state: present
+    filename: "kubernetes"
+
+- name: Update apt package index
+  apt:
+    update_cache: yes
+
+- name: Install Kubernetes components
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+
+- name: Hold containerd
+  ansible.builtin.dpkg_selections:
+    name: containerd
+    selection: hold
+- name: Hold kubelet
+  ansible.builtin.dpkg_selections:
+    name: kubelet
+    selection: hold
+
+- name: Hold kubeadm
+  ansible.builtin.dpkg_selections:
+    name: kubeadm
+    selection: hold
+
+- name: Hold kubectl
+  ansible.builtin.dpkg_selections:
+    name: kubectl
+    selection: hold

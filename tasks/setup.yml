@@ -1,0 +1,28 @@
+---
+- name: Copy the Kubernetes configuration file
+  template:
+    src: kube-config.yml.j2
+    dest: /etc/kubernetes/kube-config.yml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Initialize the Kubernetes cluster using kubeadm
+  command: sudo kubeadm init --config /etc/kubernetes/kube-config.yml
+  become: yes
+  args:
+    creates: /etc/kubernetes/pki/ca.crt # Avoid running init if already initialized
+
+- name: Pause for 15 seconds
+  ansible.builtin.pause:
+    seconds: 15
+
+- name: Set up kubeconfig for root user
+  shell: |
+    mkdir -p $HOME/.kube
+    sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+    sudo chmod 700 $HOME/.kube/config
+    sudo chown $(id -u):$(id -g) $HOME/.kube/config
+  become: yes
+  environment:
+    HOME: "/root"
